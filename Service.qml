@@ -63,6 +63,7 @@ Item {
   property real level: 0      // smoothed overall loudness 0..1
   property real beat: 0       // decays after bass hits, 0..1
   readonly property bool cavaAvailable: !!status.cava
+  readonly property bool demo: !!status.demo
   readonly property bool visualizerWanted: cavaAvailable && playing && (overlayOpen || barWidgets > 0)
 
   // ---- theme ----------------------------------------------------------------------
@@ -416,7 +417,7 @@ Item {
 
   Process {
     id: cava
-    running: root.visualizerWanted && root.cavaConfig !== ""
+    running: root.visualizerWanted && root.cavaConfig !== "" && !root.demo
     command: ["cava", "-p", root.cavaConfig]
     stdout: SplitParser {
       splitMarker: "\n"
@@ -438,6 +439,27 @@ Item {
     level = level * 0.7 + (sum / bars) * 0.3
     bass /= 6
     beat = bass > 0.55 && bass > beat ? bass : beat * 0.9
+  }
+
+  // Demo mode: a made-up spectrum (bassy on the left, beats every ~0.47 s).
+  FrameAnimation {
+    id: demoSpectrum
+    property real t: 0
+    running: root.demo && root.visualizerWanted
+    onTriggered: {
+      t += frameTime
+      var beatPhase = (t % 0.47) / 0.47
+      var kick = Math.exp(-beatPhase * 7)
+      var parts = []
+      for (var i = 0; i < root.bars; i++) {
+        var f = i / root.bars
+        var v = (0.55 - f * 0.4) * (0.55 + 0.45 * Math.sin(t * (2.1 + f * 5.3) + i * 0.7))
+          + 0.18 * Math.sin(t * 7.7 + i * 1.9) * Math.sin(t * 1.3 + f * 4)
+          + kick * Math.max(0, 0.5 - f * 1.6)
+        parts.push(Math.round(Math.max(0, Math.min(1, v)) * 1000))
+      }
+      root.frame(parts.join(";"))
+    }
   }
 
   // Lets the bars fall to rest instead of freezing when playback stops.

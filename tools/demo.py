@@ -50,7 +50,7 @@ def handle(op, args):
     if op == "status":
         return {"clientId": "demo", "loggedIn": True, "redirectUri": "http://127.0.0.1:19872/login", "configDir": "",
                 "deviceName": "Omarchy", "local": {"installed": True, "authenticated": True, "configured": True, "running": True, "name": "Omarchy"},
-                "cava": bool(__import__("shutil").which("cava"))}
+                "cava": True, "demo": True}
     if op == "player":
         return {"active": True, "playing": state["playing"], "progress": progress(), "shuffle": state["shuffle"], "repeat": state["repeat"],
                 "device": {"id": "d1", "name": "Omarchy", "type": "Computer", "active": True, "volume": state["volume"], "restricted": False, "supportsVolume": True},

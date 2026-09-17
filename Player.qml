@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Effects
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -31,7 +31,8 @@ Item {
   property bool opened: false
 
   // ---- style ------------------------------------------------------------------
-  property color background: Color.menu.background
+  // Opaque: menu backgrounds can be translucent, which suits popups, not windows.
+  property color background: Qt.rgba(Color.menu.background.r, Color.menu.background.g, Color.menu.background.b, 1)
   property color foreground: Color.menu.text
   property color border: Color.menu.border
   property color accent: Color.accent
@@ -520,24 +521,37 @@ Item {
       padding: Style.spacing.panelPadding
       clip: true
 
-      // Ambient glow: the art, blurred and breathing with the music.
-      MultiEffect {
+      // Ambient glow: a soft accent halo behind the record that breathes with the music.
+      Shape {
         id: glow
-        visible: !root.setupNeeded && stage.hasArt
-        source: sleeveArt
-        x: card.contentLeftInset + stage.sleeveSize * 0.15
-        y: card.contentTopInset + header.height + root.gap + stage.sleeveSize * 0.15
-        width: stage.sleeveSize * 0.7
-        height: width
-        scale: 1.1 + (root.service ? root.service.beat * 0.08 + root.service.level * 0.12 : 0)
-        opacity: 0.35 + (root.service ? root.service.level * 0.4 : 0)
-        blurEnabled: true
-        blur: 1
-        blurMax: 96
-        blurMultiplier: 1.5
-        autoPaddingEnabled: true
+        visible: !root.setupNeeded && stage.visible
+        readonly property real size: stage.sleeveSize * 2.1
+        readonly property real pulse: root.service ? root.service.level * 0.5 + root.service.beat * 0.35 : 0
+        x: card.contentLeftInset + stage.x + vinyl.x + vinyl.width / 2 - size / 2
+        y: card.contentTopInset + stageColumn.y + stage.y + stage.anchors.topMargin + stage.height / 2 - size / 2
+        width: size
+        height: size
+        opacity: (root.stagePlaying ? 0.28 : 0.12) + pulse * 0.45
+        scale: 0.92 + pulse * 0.12
+        preferredRendererType: Shape.CurveRenderer
+        Behavior on opacity { NumberAnimation { duration: 220 } }
         Behavior on scale { NumberAnimation { duration: 90 } }
-        Behavior on opacity { NumberAnimation { duration: 140 } }
+
+        ShapePath {
+          strokeWidth: -1
+          fillGradient: RadialGradient {
+            centerX: glow.size / 2; centerY: glow.size / 2; centerRadius: glow.size / 2
+            focalX: centerX; focalY: centerY
+            GradientStop { position: 0.0; color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.55) }
+            GradientStop { position: 0.45; color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.18) }
+            GradientStop { position: 1.0; color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0) }
+          }
+          startX: 0; startY: 0
+          PathLine { x: glow.size; y: 0 }
+          PathLine { x: glow.size; y: glow.size }
+          PathLine { x: 0; y: glow.size }
+          PathLine { x: 0; y: 0 }
+        }
       }
 
       Item {
@@ -572,8 +586,8 @@ Item {
             id: heroLabels
             anchors.left: heroIcon.right
             anchors.leftMargin: Style.space(14)
-            anchors.right: root.narrow ? parent.right : tabStrip.left
-            anchors.rightMargin: root.narrow ? 0 : root.gap
+            anchors.right: parent.right
+            anchors.rightMargin: root.narrow ? 0 : tabStrip.width + root.gap
             anchors.verticalCenter: heroIcon.verticalCenter
             spacing: Style.space(2)
 
@@ -613,10 +627,8 @@ Item {
 
           Row {
             id: tabStrip
-            anchors.right: root.narrow ? undefined : parent.right
-            anchors.left: root.narrow ? parent.left : undefined
-            anchors.bottom: root.narrow ? parent.bottom : undefined
-            anchors.verticalCenter: root.narrow ? undefined : heroIcon.verticalCenter
+            x: root.narrow ? 0 : parent.width - width
+            y: root.narrow ? parent.height - height : heroIcon.y + (heroIcon.height - height) / 2
             spacing: Style.spacing.xs
             visible: !root.setupNeeded
 
@@ -957,6 +969,9 @@ Item {
             high: root.peakTone
             mirrored: true
             visible: !!(root.service && root.service.cavaAvailable) && !root.narrow
+            // Fade the idle line out when there's no sound.
+            opacity: root.service && root.service.level > 0.01 ? 1 : 0.2
+            Behavior on opacity { NumberAnimation { duration: 400 } }
           }
         }
 

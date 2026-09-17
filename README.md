@@ -3,6 +3,8 @@
 A keyboard-driven Spotify player window that lives in the Omarchy shell and wears your
 theme.
 
+![Spotify for Omarchy: the now-playing stage with a spinning record, theme-duotone artwork and a live visualizer, next to your playlists](docs/screenshot.png)
+
 - **Now playing stage.** The album sleeve with a record that slides out and spins
   at 33⅓ rpm. It eases to a stop on pause and swaps discs when the track changes.
   Behind it is a soft glow that breathes with the music.
@@ -15,6 +17,10 @@ theme.
 - **Playlists with what's playing pinned on top.** Press `c` to jump into it.
   There are also tabs for Liked songs, Recent, Queue, Search and Devices
   (Spotify Connect).
+
+![The Queue tab: up-next songs with theme-duotone thumbnails and liked songs marked](docs/screenshot-queue.png)
+
+*Screenshots use demo mode with the Tokyo Night theme. Every colour follows your current Omarchy theme.*
 
 ## Requirements
 
@@ -131,7 +137,7 @@ Queue tab shows what's coming up. Search returns 10 results per type.
 
 `spotify.py <op> '<json>'` runs one helper request from a terminal. Set
 `"demo": true` in `~/.config/funcoder-spotify/config.json` to try the UI with
-fake data (`tools/demo.py`). After editing QML, restart the shell with
+fake data and a synthetic visualizer (`tools/demo.py`). After editing QML, restart the shell with
 `omarchy restart shell`, because the plugin is `keepLoaded`.
 
 ## Credits
