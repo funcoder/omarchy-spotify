@@ -273,10 +273,16 @@ Item {
     onTriggered: root.flash = ""
   }
 
-  function showFlash(text) {
+  // Errors stay up long enough to read.
+  function showFlash(text, error) {
     flash = text
+    flashTimer.interval = error ? 7000 : 2600
     flashTimer.restart()
   }
+
+  // Emitted when playback needs this computer connected first; the player
+  // window opens Devices so the fix is one Enter away.
+  signal localSetupNeeded()
 
   // Applies `optimistic` to the player state straight away, sends the
   // command, then re-polls to pick up what Spotify actually did.
@@ -294,7 +300,11 @@ Item {
       pendingCommands = Math.max(0, pendingCommands - 1)
       if (data.error) {
         errorText = data.error
-        showFlash(data.error)
+        showFlash(data.error, true)
+        if (data.status === 428) {
+          refreshStatus()
+          localSetupNeeded()
+        }
       } else {
         errorText = ""
       }
@@ -372,7 +382,7 @@ Item {
         var undo = Object.assign({}, saved)
         undo[uri] = !save
         saved = undo
-        showFlash(data.error)
+        showFlash(data.error, true)
       } else {
         showFlash(save ? "Added to Liked Songs" : "Removed from Liked Songs")
         queueSerial++
@@ -391,7 +401,7 @@ Item {
   function addToQueue(item) {
     if (!item || !item.uri) return
     request("queue_add", { uri: item.uri }, function(data) {
-      if (data.error) showFlash(data.error)
+      if (data.error) showFlash(data.error, true)
       else { showFlash("Queued “" + item.name + "”"); queueSerial++ }
     })
   }

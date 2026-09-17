@@ -223,6 +223,13 @@ Item {
 
   Connections {
     target: root.service
+    function onLocalSetupNeeded() {
+      if (!root.opened) {
+        root.shell ? root.shell.summon(root.pluginId, JSON.stringify({ tab: "devices" })) : root.open(JSON.stringify({ tab: "devices" }))
+      } else {
+        root.switchTab("devices")
+      }
+    }
     function onQueueSerialChanged() {
       if (!root.opened) return
       var next = Object.assign({}, root.data)

@@ -598,25 +598,48 @@ def find_device_id(prefer_local=True):
     return devices[0].get("id") if devices else None
 
 
+def local_device_id():
+    """Spotify Connect id of this computer's spotifyd, if it's online."""
+    name = device_name().lower()
+    data = api("GET", "/me/player/devices") or {}
+    for d in data.get("devices") or []:
+        if (d.get("name") or "").lower() == name:
+            return d.get("id")
+    return None
+
+
+NOT_CONNECTED = 428  # status marker the shell uses to open Devices
+
+
 def with_device(fn):
-    """Runs a player command, retrying on this computer if no device is active."""
+    """Runs a player command. If Spotify has no active device, plays on this
+    computer (starting spotifyd if needed), else on any other online device."""
     try:
         return fn(None)
     except ApiError as e:
         if e.status != 404:
             raise
-        device = find_device_id()
+    local = local_status()
+    device = None
+    if local["installed"] and local["authenticated"]:
+        device = local_device_id()
         if not device:
-            if local_status().get("installed") and not local_status().get("running"):
+            if not local["running"]:
                 local_start()
-                for _ in range(20):
-                    time.sleep(0.5)
-                    device = find_device_id()
-                    if device:
-                        break
-            if not device:
-                raise ApiError("No Spotify device is available. Start this computer's player in Devices (d)")
-        return fn(device)
+            for _ in range(24):
+                time.sleep(0.5)
+                device = local_device_id()
+                if device:
+                    break
+    if not device:
+        device = find_device_id(prefer_local=False)
+    if not device:
+        if local["installed"] and not local["authenticated"]:
+            raise ApiError("This computer isn't connected to Spotify yet. In Devices (d), press Enter on This computer", NOT_CONNECTED)
+        if not local["installed"]:
+            raise ApiError("No Spotify device is online. Install spotifyd to play here (sudo pacman -S spotifyd), or open Spotify on another device")
+        raise ApiError("No Spotify device came online. Check Devices (d)")
+    return fn(device)
 
 
 def op_play(args):
@@ -750,7 +773,7 @@ def write_local_config():
 def local_start():
     write_local_config()
     if not local_credentials():
-        raise ApiError("Connect this computer to Spotify first (Enter on the setup step)")
+        raise ApiError("This computer isn't connected to Spotify yet. In Devices (d), press Enter on This computer", NOT_CONNECTED)
     out = systemctl("restart", UNIT_NAME)
     if out.returncode != 0:
         raise ApiError("spotifyd didn't start: " + (out.stderr.strip() or "see journalctl --user -u " + UNIT_NAME))
