@@ -747,16 +747,29 @@ def op_local_status(_):
 
 def op_local_auth(_):
     write_local_config()
-    # Opens the browser and waits for the redirect, then caches credentials
-    # under cache_path/oauth.
+    # spotifyd prints "Browse to: <url>", waits for the browser redirect, then
+    # caches credentials under cache_path/oauth. Open that URL for the user.
+    proc = subprocess.Popen([spotifyd_bin(), "authenticate", "--config-path", SPOTIFYD_CONF,
+                             "--cache-path", SPOTIFYD_CACHE],
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, text=True)
+    timer = threading.Timer(300, proc.kill)
+    timer.start()
+    tail, opened = [], False
     try:
-        out = subprocess.run([spotifyd_bin(), "authenticate", "--config-path", SPOTIFYD_CONF],
-                             capture_output=True, text=True, timeout=300)
-    except subprocess.TimeoutExpired:
-        raise ApiError("Timed out waiting for the Spotify login in your browser")
+        for line in proc.stdout:
+            line = line.strip()
+            if line:
+                tail = (tail + [line])[-3:]
+            idx = line.find("https://accounts.spotify.com/")
+            if idx >= 0 and not opened:
+                opened = True
+                url = line[idx:].split()[0]
+                subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        proc.wait()
+    finally:
+        timer.cancel()
     if not local_credentials():
-        tail = (out.stderr or out.stdout or "").strip().splitlines()[-1:] or ["no credentials were saved"]
-        raise ApiError("This computer couldn't connect: " + tail[0])
+        raise ApiError("This computer couldn't connect: " + (tail[-1] if tail else "no credentials were saved"))
     local_start()
     return local_status()
 
