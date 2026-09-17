@@ -1,9 +1,9 @@
-# Spotify for Omarchy
+# Spotify Vinyl
 
 A keyboard-driven Spotify player window that lives in the Omarchy shell and wears your
 theme.
 
-![Spotify for Omarchy in action: the record spins and swaps on a track change, slides into its sleeve on pause, the visualizer moves with the music, then the Queue tab opens](docs/demo.gif)
+![Spotify Vinyl in action: the record spins and swaps on a track change, slides into its sleeve on pause, the visualizer moves with the music, then the Queue tab opens](docs/demo.gif)
 
 - **Now playing stage.** The album sleeve with a record that slides out and spins
   at 33⅓ rpm. It eases to a stop on pause and swaps discs when the track changes.
