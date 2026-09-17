@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "funcoder.spotify",
+  "name": "Spotify",
+  "version": "0.1.0",
+  "author": "funcoder",
+  "license": "MIT",
+  "description": "A keyboard-driven Spotify player that looks like Omarchy: theme-duotone artwork on a spinning record, a live visualizer, playlists (with what's playing pinned on top), liked songs, queue, search and Spotify Connect devices.",
+  "keywords": ["spotify", "music", "player", "playlists", "visualizer", "media"],
+  "kinds": ["service", "overlay", "bar-widget"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "overlay": "Player.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Spotify",
+    "description": "Now playing with a mini visualizer; opens the Spotify player",
+    "category": "Media",
+    "aliases": ["spotify", "music", "player", "now playing"],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "showTitle": true,
+      "maxTitleWidth": 220
+    },
+    "schema": [
+      { "key": "showTitle", "type": "boolean", "label": "Show the song title next to the icon", "defaultValue": true },
+      { "key": "maxTitleWidth", "type": "integer", "label": "Maximum title width", "min": 60, "max": 600, "step": 10, "defaultValue": 220 }
+    ]
+  }
+}
