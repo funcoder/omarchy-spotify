@@ -1,6 +1,6 @@
 # Spotify for Omarchy
 
-A keyboard-driven Spotify player that lives in the Omarchy shell and wears your
+A keyboard-driven Spotify player window that lives in the Omarchy shell and wears your
 theme.
 
 - **Now playing stage.** The album sleeve with a record that slides out and spins
@@ -57,7 +57,7 @@ Spotify only lets personal players use its API through an app you register:
 | `↑↓` / `j k` | Move |
 | `Enter` | Play a song, open a playlist or album |
 | `Shift+Enter` | Play a playlist or album without opening it |
-| `Esc` / `Backspace` | Back, then close |
+| `Esc` / `Backspace` | Back (close the window with `Super+W`) |
 | `Tab` / `1`–`6` | Switch tabs |
 | `/` | Search |
 | `Space` | Play or pause |

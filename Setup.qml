@@ -14,7 +14,6 @@ Item {
   property color accent: Color.accent
   property string fontFamily: Style.font.menuFamily
 
-  signal closeRequested()
 
   readonly property color dim: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.55)
   readonly property string dashboardUrl: "https://developer.spotify.com/dashboard"
@@ -47,7 +46,6 @@ Item {
 
   function handleCommon(event) {
     var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
-    if (event.key === Qt.Key_Escape) { root.closeRequested(); return true }
     if (event.key === Qt.Key_Down || event.key === Qt.Key_Tab) { step = Math.min(1, step + 1); focusCurrent(); return true }
     if (event.key === Qt.Key_Up || event.key === Qt.Key_Backtab) { step = Math.max(0, step - 1); focusCurrent(); return true }
     if (ctrl && event.key === Qt.Key_O) { service.request("open_url", { url: dashboardUrl }); return true }

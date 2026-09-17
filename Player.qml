@@ -6,7 +6,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// Spotify, the Omarchy way: one keyboard-driven card.
+// Spotify, the Omarchy way: one keyboard-driven window.
 //
 // Left: the now-playing stage (sleeve + spinning vinyl, theme-duotone art,
 // ambient glow and a cava visualizer). Right: tabs for playlists, liked
@@ -14,7 +14,7 @@ import qs.Ui
 // playing is pinned to the top of Playlists, and `c` jumps straight into it.
 //
 // Keys: ↑↓/jk move · Enter play/open · Shift+Enter play a playlist without
-// opening it · Esc/Backspace back, then close · Tab/1-6 tabs · / search ·
+// opening it · Esc/Backspace back · Tab/1-6 tabs · / search ·
 // Space play/pause · ←→ seek · n/p next/previous · +/- volume · m mute ·
 // s shuffle · r repeat · l like playing track · a add to queue ·
 // c open what's playing · o toggle omarchified art
@@ -36,16 +36,20 @@ Item {
   property color border: Color.menu.border
   property color accent: Color.accent
   property var borderSpec: Border.surfaceSpec("menu", "border", border, Math.max(1, Style.space(2)))
-  property color scrim: Color.menu.scrim
   readonly property color dim: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.55)
   readonly property color faint: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.3)
   readonly property color shadowTone: service ? service.shadowTone : Qt.darker(background, 1.4)
   readonly property color peakTone: service ? service.peakTone : foreground
   property string fontFamily: Style.font.menuFamily
   property int gap: Style.spacing.lg
-  property int cardWidth: Math.min(Style.space(1220), panel.width - Style.gapsOut * 2)
-  property int cardHeight: Math.min(Style.space(760), panel.height - Style.gapsOut * 2)
+  readonly property string windowTitle: "Spotify"
+  property bool closingFromHost: false
   property int rowHeight: Style.font.body + Style.font.caption + Style.spacing.controlPaddingY * 2 + Style.space(16)
+
+  // Tiled windows can be small: tabs lose their labels when compact, and the
+  // stage stacks above the browser when narrow.
+  readonly property bool compact: panel.width < Style.space(1100)
+  readonly property bool narrow: panel.width < Style.space(820)
 
   property bool omarchify: true
   readonly property real artAmount: omarchify ? 1 : 0
@@ -141,6 +145,7 @@ Item {
   function open(payloadJson) {
     var payload = {}
     try { payload = JSON.parse(payloadJson || "{}") || {} } catch (e) {}
+    if (opened) raise()
     opened = true
     if (service) {
       service.overlayOpen = true
@@ -152,14 +157,26 @@ Item {
     focusKeys()
   }
 
+  // Host-initiated close (`shell hide`): the shell already knows.
   function close() {
+    closingFromHost = true
     opened = false
+    closingFromHost = false
     if (service) service.overlayOpen = false
   }
 
+  // User-initiated close; tells the shell so `toggle` stays in step.
   function dismiss() {
-    close()
     if (shell && typeof shell.hide === "function") shell.hide(pluginId)
+    else close()
+  }
+
+  // Summoned while already open (maybe on another workspace): bring it here.
+  function raise() {
+    Quickshell.execDetached(["bash", "-c",
+      "a=$(hyprctl clients -j | jq -r --arg t \"$1\" 'first(.[] | select(.title == $t) | .address) // empty'); "
+      + "[ -n \"$a\" ] && hyprctl dispatch \"hl.dsp.focus({ window = \\\"address:$a\\\" })\"",
+      "raise", windowTitle])
   }
 
   function toggle() {
@@ -359,7 +376,8 @@ Item {
 
     if (key === Qt.Key_Escape) {
       if (fromSearch && query !== "") { searchField.text = ""; return true }
-      if (!back()) dismiss()
+      if (fromSearch) { selectedIndex = 0; keys.forceActiveFocus(); return true }
+      back()
       return true
     }
     if (key === Qt.Key_Tab || key === Qt.Key_Backtab) { cycleTab(key === Qt.Key_Backtab || shift ? -1 : 1); return true }
@@ -383,7 +401,7 @@ Item {
     if (fromSearch) return false
 
     // List-only single keys.
-    if (key === Qt.Key_Backspace || key === Qt.Key_H) { if (!back()) dismiss(); return true }
+    if (key === Qt.Key_Backspace || key === Qt.Key_H) { back(); return true }
     if (key === Qt.Key_J) { moveSelection(1); return true }
     if (key === Qt.Key_K) { moveSelection(-1); return true }
     if (key === Qt.Key_G) { selectedIndex = shift ? rows.length - 1 : 0; positionList(); return true }
@@ -478,43 +496,29 @@ Item {
 
   // ---- window ------------------------------------------------------------------------
 
-  PanelWindow {
+  FloatingWindow {
     id: panel
+    title: root.windowTitle
     visible: root.opened
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: "transparent"
-    WlrLayershell.namespace: "funcoder-spotify"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-    exclusionMode: ExclusionMode.Ignore
+    color: root.background
+    implicitWidth: Style.space(1220)
+    implicitHeight: Style.space(780)
+    minimumSize: Qt.size(Style.space(860), Style.space(560))
 
-    Rectangle {
-      anchors.fill: parent
-      color: root.scrim
-      opacity: root.opened ? 1 : 0
-      Behavior on opacity { NumberAnimation { duration: 180 } }
-    }
-
-    MouseArea {
-      anchors.fill: parent
-      onClicked: root.dismiss()
+    onVisibleChanged: {
+      if (visible || !root.opened) return
+      // Closed by the window manager (Super+W).
+      root.opened = false
+      if (root.service) root.service.overlayOpen = false
+      if (!root.closingFromHost && root.shell && typeof root.shell.hide === "function") root.shell.hide(root.pluginId)
     }
 
     BorderSurface {
       id: card
-      width: root.cardWidth
-      height: root.cardHeight
-      radius: Style.cornerRadius
-      anchors.centerIn: parent
+      anchors.fill: parent
       color: root.background
-      borderSpec: root.borderSpec
       padding: Style.spacing.panelPadding
       clip: true
-
-      scale: root.opened ? 1 : 0.97
-      Behavior on scale { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-
-      MouseArea { anchors.fill: parent; onClicked: {} }
 
       // Ambient glow: the art, blurred and breathing with the music.
       MultiEffect {
@@ -550,11 +554,12 @@ Item {
           anchors.right: parent.right
           anchors.top: parent.top
           height: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight)
+            + (root.narrow && tabStrip.visible ? tabStrip.height + Style.spacing.md : 0)
 
           Text {
             id: heroIcon
             anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.top: parent.top
             textFormat: Text.PlainText
             text: root.glyph.spotify
             color: root.stagePlaying ? root.accent : root.foreground
@@ -567,9 +572,9 @@ Item {
             id: heroLabels
             anchors.left: heroIcon.right
             anchors.leftMargin: Style.space(14)
-            anchors.right: tabStrip.left
-            anchors.rightMargin: root.gap
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.right: root.narrow ? parent.right : tabStrip.left
+            anchors.rightMargin: root.narrow ? 0 : root.gap
+            anchors.verticalCenter: heroIcon.verticalCenter
             spacing: Style.space(2)
 
             Text {
@@ -608,8 +613,10 @@ Item {
 
           Row {
             id: tabStrip
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.right: root.narrow ? undefined : parent.right
+            anchors.left: root.narrow ? parent.left : undefined
+            anchors.bottom: root.narrow ? parent.bottom : undefined
+            anchors.verticalCenter: root.narrow ? undefined : heroIcon.verticalCenter
             spacing: Style.spacing.xs
             visible: !root.setupNeeded
 
@@ -640,6 +647,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                   }
                   Text {
+                    visible: !root.compact || tabChip.isTab
                     textFormat: Text.PlainText
                     text: tabChip.modelData.label
                     color: tabChip.isTab ? root.foreground : root.dim
@@ -684,7 +692,6 @@ Item {
           foreground: root.foreground
           accent: root.accent
           fontFamily: root.fontFamily
-          onCloseRequested: root.dismiss()
         }
 
         // ---------- stage (left) ----------
@@ -693,9 +700,10 @@ Item {
           anchors.left: parent.left
           anchors.top: header.bottom
           anchors.topMargin: root.gap
-          anchors.bottom: footer.top
-          anchors.bottomMargin: root.gap
-          width: Math.round(parent.width * 0.42)
+          anchors.bottom: root.narrow ? undefined : footer.top
+          anchors.bottomMargin: root.narrow ? 0 : root.gap
+          width: root.narrow ? parent.width : Math.round(parent.width * 0.42)
+          height: root.narrow ? (stage.visible ? stage.height + root.gap : 0) + nowInfo.implicitHeight : undefined
           visible: !root.setupNeeded
 
           Item {
@@ -704,8 +712,13 @@ Item {
             anchors.right: parent.right
             anchors.top: parent.top
             // With no visualizer below, centre the stage and song info in the column.
-            anchors.topMargin: viz.visible ? 0 : Math.max(0, (parent.height - height - nowInfo.implicitHeight - root.gap) / 2)
-            height: Math.max(Style.space(120), Math.min(width * 0.64, parent.height - nowInfo.implicitHeight - (viz.visible ? Style.space(56) : 0) - root.gap * 2))
+            anchors.topMargin: viz.visible || root.narrow ? 0 : Math.max(0, (parent.height - height - nowInfo.implicitHeight - root.gap) / 2)
+            // Stacked (narrow): a modest stage, hidden when the window is too short for it.
+            readonly property real stackedHeight: Math.round(Math.min(width * 0.45, stageColumn.parent.height * 0.3))
+            visible: !root.narrow || stackedHeight >= Style.space(90)
+            height: root.narrow
+              ? (visible ? stackedHeight : 0)
+              : Math.max(Style.space(120), Math.min(width * 0.64, parent.height - nowInfo.implicitHeight - (viz.visible ? Style.space(56) : 0) - root.gap * 2))
             readonly property bool hasArt: sleeveArt.hasImage
             readonly property real sleeveSize: height
 
@@ -768,8 +781,8 @@ Item {
             id: nowInfo
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.top: stage.bottom
-            anchors.topMargin: root.gap
+            anchors.top: stage.visible ? stage.bottom : parent.top
+            anchors.topMargin: stage.visible ? root.gap : 0
             spacing: Style.spacing.sm
             clip: true
 
@@ -858,11 +871,12 @@ Item {
 
             Item {
               width: parent.width
-              height: transport.implicitHeight
+              height: timeLeft.implicitHeight
+              visible: !!(root.service && root.service.track)
 
               Text {
+                id: timeLeft
                 anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
                 textFormat: Text.PlainText
                 text: root.service && root.service.track ? root.fmt(root.service.progress) : ""
                 color: root.dim
@@ -870,6 +884,19 @@ Item {
                 font.pixelSize: Style.font.caption
               }
 
+              Text {
+                anchors.right: parent.right
+                textFormat: Text.PlainText
+                text: root.service && root.service.track ? root.fmt(root.service.duration) : ""
+                color: root.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+              }
+            }
+
+            Item {
+              width: parent.width
+              height: transport.implicitHeight
               Row {
                 id: transport
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -914,15 +941,6 @@ Item {
                 }
               }
 
-              Text {
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                textFormat: Text.PlainText
-                text: root.service && root.service.track ? root.fmt(root.service.duration) : ""
-                color: root.dim
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-              }
             }
           }
 
@@ -937,17 +955,17 @@ Item {
             low: root.accent
             high: root.peakTone
             mirrored: true
-            visible: !!(root.service && root.service.cavaAvailable)
+            visible: !!(root.service && root.service.cavaAvailable) && !root.narrow
           }
         }
 
         // ---------- browser (right) ----------
         Item {
           id: browser
-          anchors.left: stageColumn.right
-          anchors.leftMargin: root.gap * 2
+          anchors.left: root.narrow ? parent.left : stageColumn.right
+          anchors.leftMargin: root.narrow ? 0 : root.gap * 2
           anchors.right: parent.right
-          anchors.top: header.bottom
+          anchors.top: root.narrow ? stageColumn.bottom : header.bottom
           anchors.topMargin: root.gap
           anchors.bottom: footer.top
           anchors.bottomMargin: root.gap
@@ -1147,9 +1165,9 @@ Item {
             width: Math.min(implicitWidth, parent.width * (root.service && root.service.flash ? 0.62 : 1))
             textFormat: Text.PlainText
             text: root.setupNeeded
-              ? "Enter do this step  ·  ↑↓ move  ·  Esc close"
+              ? "Enter do this step  ·  ↑↓ move  ·  Super+W close"
               : (root.tab === "search" && !root.detail && root.selectedIndex < 0
-                ? "Enter search  ·  ↓ results  ·  Tab next tab  ·  Esc clear, then close"
+                ? "Enter search  ·  ↓ results  ·  Tab next tab  ·  Esc clear"
                 : "Enter play/open  ·  Space pause  ·  ←→ seek  ·  n/p skip  ·  +/- vol  ·  l like  ·  a queue  ·  c now playing  ·  o art  ·  Esc back")
             color: root.foreground
             opacity: 0.5

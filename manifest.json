@@ -7,11 +7,11 @@
   "license": "MIT",
   "description": "A keyboard-driven Spotify player that looks like Omarchy: theme-duotone artwork on a spinning record, a live visualizer, playlists (with what's playing pinned on top), liked songs, queue, search and Spotify Connect devices.",
   "keywords": ["spotify", "music", "player", "playlists", "visualizer", "media"],
-  "kinds": ["service", "overlay", "bar-widget"],
+  "kinds": ["service", "panel", "bar-widget"],
   "keepLoaded": true,
   "entryPoints": {
     "service": "Service.qml",
-    "overlay": "Player.qml",
+    "panel": "Player.qml",
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
