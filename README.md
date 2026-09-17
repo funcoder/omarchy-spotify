@@ -8,7 +8,8 @@ theme.
   Behind it is a soft glow that breathes with the music.
 - **Omarchified artwork.** A shader maps every cover onto your theme: shadows go
   to the darkest background, highlights to the accent. The selected row shows
-  the true colours. Press `o` to switch between omarchified and original art.
+  the true colours, and so does the record label. Press `o` to switch between
+  omarchified and original art.
 - **Live visualizer.** Spectrum bars from [cava](https://github.com/karlstav/cava)
   under the player, in the row that's playing, and in the bar widget.
 - **Playlists with what's playing pinned on top.** Press `c` to jump into it.

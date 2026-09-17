@@ -730,7 +730,8 @@ Item {
               x: (stage.sleeveSize - width) / 2 + root.vinylOut * Math.min(stage.width - stage.sleeveSize, stage.sleeveSize * 0.58)
               source: root.shown ? root.shown.image : ""
               spinning: root.stagePlaying && !swap.running
-              amount: root.artAmount
+              // The record label always shows the real colours.
+              amount: 0
               shadow: root.shadowTone
               highlight: root.accent
               peak: root.peakTone
