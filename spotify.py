@@ -38,8 +38,12 @@ APP = "funcoder-spotify"
 API = "https://api.spotify.com/v1"
 AUTH_URL = "https://accounts.spotify.com/authorize"
 TOKEN_URL = "https://accounts.spotify.com/api/token"
-REDIRECT_PORT = 8989
-REDIRECT_URI = f"http://127.0.0.1:{REDIRECT_PORT}/callback"
+# Same redirect URI as cliamp, so a Spotify app registered for cliamp works
+# here unchanged (Spotify now allows one development app per account).
+REDIRECT_PORT = 19872
+REDIRECT_PATH = "/login"
+REDIRECT_URI = f"http://127.0.0.1:{REDIRECT_PORT}{REDIRECT_PATH}"
+CLIAMP_CONFIG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config"), "cliamp", "config.toml")
 SCOPES = " ".join([
     "user-read-playback-state",
     "user-modify-playback-state",
@@ -91,8 +95,18 @@ def save_config(data):
         os.replace(tmp, CONFIG_PATH)
 
 
+def cliamp_client_id():
+    """client_id from the [spotify] section of cliamp's config, if any."""
+    try:
+        import tomllib
+        with open(CLIAMP_CONFIG, "rb") as f:
+            return str((tomllib.load(f).get("spotify") or {}).get("client_id") or "").strip()
+    except (OSError, ValueError, ImportError):
+        return ""
+
+
 def client_id():
-    return str(load_config().get("clientId") or "").strip()
+    return str(load_config().get("clientId") or "").strip() or cliamp_client_id()
 
 
 def device_name():
@@ -320,6 +334,7 @@ def op_status(_):
     logged_in = bool(cid and keyring_lookup(cid))
     return {
         "clientId": cid,
+        "clientIdFromCliamp": bool(cid) and not load_config().get("clientId"),
         "loggedIn": logged_in,
         "redirectUri": REDIRECT_URI,
         "configDir": CONFIG_DIR,
@@ -362,7 +377,7 @@ def op_login(_):
 
             def do_GET(self):
                 parsed = urllib.parse.urlparse(self.path)
-                if parsed.path != "/callback":
+                if parsed.path != REDIRECT_PATH:
                     self.send_response(404)
                     self.end_headers()
                     return

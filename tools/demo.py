@@ -48,7 +48,7 @@ def progress():
 
 def handle(op, args):
     if op == "status":
-        return {"clientId": "demo", "loggedIn": True, "redirectUri": "http://127.0.0.1:8989/callback", "configDir": "",
+        return {"clientId": "demo", "loggedIn": True, "redirectUri": "http://127.0.0.1:19872/login", "configDir": "",
                 "deviceName": "Omarchy", "local": {"installed": True, "authenticated": True, "configured": True, "running": True, "name": "Omarchy"},
                 "cava": bool(__import__("shutil").which("cava"))}
     if op == "player":

@@ -42,7 +42,9 @@ o.bind("SUPER + SHIFT + M", "Spotify", "omarchy-shell shell toggle funcoder.spot
 Spotify only lets personal players use its API through an app you register:
 
 1. Go to <https://developer.spotify.com/dashboard> and create an app. Tick **Web
-   API** and add the redirect URI `http://127.0.0.1:8989/callback`.
+   API** and add the redirect URI `http://127.0.0.1:19872/login`.
+   This is the same URI cliamp uses, so an app you already made for cliamp works
+   too. A `client_id` in cliamp's `[spotify]` config is picked up automatically.
 2. Open the player and paste the app's **Client ID**, then log in. The refresh
    token is kept in your desktop keyring.
 3. Press `d` for Devices, then Enter on **This computer**. This logs spotifyd in

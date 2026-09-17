@@ -18,7 +18,7 @@ Item {
 
   readonly property color dim: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.55)
   readonly property string dashboardUrl: "https://developer.spotify.com/dashboard"
-  readonly property string redirectUri: service && service.status.redirectUri ? service.status.redirectUri : "http://127.0.0.1:8989/callback"
+  readonly property string redirectUri: service && service.status.redirectUri ? service.status.redirectUri : "http://127.0.0.1:19872/login"
 
   readonly property bool step1Done: !!(service && service.hasClientId)
   readonly property bool step2Done: !!(service && service.loggedIn)
@@ -85,7 +85,9 @@ Item {
       width: parent.width
       wrapMode: Text.Wrap
       textFormat: Text.PlainText
-      text: "Spotify only lets personal players talk to it through an app you register yourself. It takes a minute, is free, and needs Spotify Premium."
+      text: root.service && root.service.status.clientIdFromCliamp
+        ? "Found the Spotify app you set up for cliamp, so there's nothing to register. Just log in."
+        : "Spotify only lets personal players talk to it through an app you register yourself. It takes a minute, is free, and needs Spotify Premium. Already set one up for cliamp? Paste the same client ID; the redirect URI is the same."
       color: root.dim
       font.family: root.fontFamily
       font.pixelSize: Style.font.body
