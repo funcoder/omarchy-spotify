@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+# Never commit local settings or credentials
+config.json
+*.local.json
+.env
