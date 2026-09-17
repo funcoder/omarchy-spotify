@@ -492,6 +492,12 @@ Item {
     function volumeUp(): void { root.setVolume(root.volume + 5) }
     function volumeDown(): void { root.setVolume(root.volume - 5) }
     function like(): void { root.toggleLike() }
+    // Jump to a position, in seconds, or a percentage of the song with a trailing %.
+    function seek(position: string): void {
+      var v = String(position).trim()
+      if (v.slice(-1) === "%") root.seekTo(root.duration * (parseFloat(v) || 0) / 100)
+      else root.seekTo((parseFloat(v) || 0) * 1000)
+    }
     function status(): string {
       return JSON.stringify({
         ready: root.ready, playing: root.playing,

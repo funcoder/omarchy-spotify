@@ -748,6 +748,8 @@ Item {
               highlight: root.accent
               peak: root.peakTone
               beat: root.service ? root.service.beat : 0
+              progress: root.service && root.service.duration > 0 ? root.service.progress / root.service.duration : 0
+              armDown: root.stagePlaying && !swap.running && root.vinylOut > 0.9
             }
 
             // Sleeve.

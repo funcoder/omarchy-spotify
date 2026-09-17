@@ -3,10 +3,12 @@
 A keyboard-driven Spotify player window that lives in the Omarchy shell and wears your
 theme.
 
-![Spotify Vinyl in action: the record spins and swaps on a track change, slides into its sleeve on pause, the visualizer moves with the music, then the Queue tab opens](docs/demo.gif)
+![Spotify Vinyl in action: the tonearm lifts and moves with the song, the record spins and swaps on a track change, slides into its sleeve on pause, the visualizer moves with the music, then the Queue tab opens](docs/demo.gif)
 
 - **Now playing stage.** The album sleeve with a record that slides out and spins
   at 33⅓ rpm. It eases to a stop on pause and swaps discs when the track changes.
+  A tonearm follows the song from the outer groove towards the label. It lifts,
+  swings and sets down on play, pause, seek and track changes.
   Behind it is a soft glow that breathes with the music.
 - **Omarchified artwork.** A shader maps every cover onto your theme: shadows go
   to the darkest background, highlights to the accent. The selected row shows
@@ -116,7 +118,7 @@ omarchy plugin remove funcoder.spotify
 Bar widget: click to open, right click to play or pause, middle click for the
 next song, scroll to change the volume.
 
-IPC target for your own bindings: `omarchy-shell funcoder.spotify.player playPause|next|previous|volumeUp|volumeDown|like|status`.
+IPC target for your own bindings: `omarchy-shell funcoder.spotify.player playPause|next|previous|volumeUp|volumeDown|like|status`, and `seek 90` (seconds) or `seek 50%`.
 
 ## Limits
 

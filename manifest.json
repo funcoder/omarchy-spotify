@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "funcoder.spotify",
   "name": "Spotify Vinyl",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": "funcoder",
   "license": "MIT",
   "description": "A keyboard-driven Spotify player that looks like Omarchy: theme-duotone artwork on a spinning record, a live visualizer, playlists (with what's playing pinned on top), liked songs, queue, search and Spotify Connect devices.",
