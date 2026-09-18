@@ -215,7 +215,9 @@ Item {
     running: root.ready
     repeat: true
     // While Spotify is refusing calls there is nothing to learn by asking often.
-    interval: root.stalledText ? 30000 : (root.overlayOpen ? 1000 : (root.playing ? 3000 : 8000))
+    // The open-window rate is the one that matters for quota: a development-mode
+    // app doesn't have the budget for a poll every second.
+    interval: root.stalledText ? 30000 : (root.overlayOpen ? 2000 : (root.playing ? 3000 : 8000))
     triggeredOnStart: true
     onTriggered: root.poll()
   }
