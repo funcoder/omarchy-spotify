@@ -818,7 +818,9 @@ Item {
                 id: titleText
                 width: parent.width - likeGlyph.width - Style.spacing.sm
                 textFormat: Text.PlainText
-                text: root.shown ? root.shown.name : (root.service && root.service.ready ? "Nothing playing" : "")
+                text: root.shown ? root.shown.name
+                      : (root.service && root.service.stalledText ? root.service.stalledText
+                         : (root.service && root.service.ready ? "Nothing playing" : ""))
                 color: root.foreground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.title

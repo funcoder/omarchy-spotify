@@ -181,6 +181,26 @@ class _SameOriginRedirect(urllib.request.HTTPRedirectHandler):
 _opener = urllib.request.build_opener(_SameOriginRedirect)
 
 
+# Spotify answers 429 with a Retry-After that can run to hours for a
+# development-mode app. Requests made during that window don't just fail, they
+# keep the quota pegged, so the cooldown is remembered and nothing is sent
+# until it expires.
+_rate_limit = {"until": 0.0}
+
+
+def rate_limit_left():
+    return max(0.0, _rate_limit["until"] - time.time())
+
+
+def describe_wait(seconds):
+    seconds = int(seconds)
+    if seconds >= 3600:
+        return f"{seconds // 3600}h {seconds % 3600 // 60}m"
+    if seconds >= 60:
+        return f"{seconds // 60}m"
+    return f"{seconds}s"
+
+
 def _read_capped(resp, limit):
     """Read at most `limit` bytes; anything longer is refused outright."""
     raw = resp.read(limit + 1)
@@ -233,6 +253,9 @@ def forget_token():
 
 
 def api(method, path, params=None, body=None, retry=True):
+    left = rate_limit_left()
+    if left > 0:
+        raise ApiError("Spotify is rate limiting this app — about %s left" % describe_wait(left), 429)
     url = _require_origin(path if path.startswith("http") else API + path, API_ORIGIN)
     if params:
         clean = {k: v for k, v in params.items() if v is not None}
@@ -245,6 +268,7 @@ def api(method, path, params=None, body=None, retry=True):
     req = urllib.request.Request(url, data=data, method=method, headers=headers)
     try:
         with _opener.open(req, timeout=20) as resp:
+            _rate_limit["until"] = 0.0
             raw = _read_capped(resp, MAX_BODY_BYTES).decode()
             if not raw.strip():
                 return None
@@ -257,10 +281,18 @@ def api(method, path, params=None, body=None, retry=True):
         if e.code == 401 and retry:
             forget_token()
             return api(method, path, params, body, retry=False)
-        if e.code == 429 and retry:
-            wait = min(10, int(e.headers.get("Retry-After") or 2))
-            time.sleep(wait)
-            return api(method, path, params, body, retry=False)
+        if e.code == 429:
+            try:
+                wait = int(e.headers.get("Retry-After") or 2)
+            except ValueError:
+                wait = 2
+            # A short pause is worth waiting out; a long one is a quota
+            # cooldown, and retrying into it only makes it last longer.
+            if retry and wait <= 5:
+                time.sleep(wait)
+                return api(method, path, params, body, retry=False)
+            _rate_limit["until"] = time.time() + wait
+            raise ApiError("Spotify is rate limiting this app — about %s left" % describe_wait(wait), 429)
         msg = ""
         try:
             detail = json.loads(raw)

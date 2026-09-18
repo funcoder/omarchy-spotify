@@ -29,6 +29,9 @@ Item {
   readonly property bool ready: hasClientId && loggedIn
   property string busyStep: ""   // "login" | "local" | ""
   property string errorText: ""
+  // Set while Spotify is refusing calls (a 429 quota cooldown), so the player
+  // can say why it has nothing to show instead of looking simply empty.
+  property string stalledText: ""
 
   // ---- player -----------------------------------------------------------------
   property var player: ({ active: false })
@@ -211,7 +214,8 @@ Item {
     id: pollTimer
     running: root.ready
     repeat: true
-    interval: root.overlayOpen ? 1000 : (root.playing ? 3000 : 8000)
+    // While Spotify is refusing calls there is nothing to learn by asking often.
+    interval: root.stalledText ? 30000 : (root.overlayOpen ? 1000 : (root.playing ? 3000 : 8000))
     triggeredOnStart: true
     onTriggered: root.poll()
   }
@@ -242,8 +246,13 @@ Item {
       polling = false
       if (data.error) {
         if (data.status === 401) refreshStatus()
+        if (data.status === 429) {
+          if (!stalledText) showFlash(data.error, true)
+          stalledText = data.error
+        }
         return
       }
+      stalledText = ""
       now = Date.now()
       fetchedAt = now
       player = data
