@@ -36,6 +36,14 @@ import urllib.request
 
 APP = "funcoder-spotify"
 API = "https://api.spotify.com/v1"
+# The bearer token is only ever sent to this exact origin. Pagination URLs come
+# back from the API itself, so they are checked the same way before use.
+API_ORIGIN = "https://api.spotify.com"
+TOKEN_ORIGIN = "https://accounts.spotify.com"
+# Ceilings on anything read from the network, so a huge or endless response
+# can't exhaust this helper (and the shell reading its output).
+MAX_BODY_BYTES = 8 * 1024 * 1024
+MAX_ERROR_BYTES = 64 * 1024
 AUTH_URL = "https://accounts.spotify.com/authorize"
 TOKEN_URL = "https://accounts.spotify.com/api/token"
 # Same redirect URI as cliamp, so a Spotify app registered for cliamp works
@@ -149,16 +157,48 @@ _token = {"access": "", "expires": 0.0, "client": ""}
 _login_lock = threading.Lock()
 
 
+def _origin(url):
+    parts = urllib.parse.urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}".lower()
+
+
+def _require_origin(url, expected):
+    """Refuse to attach credentials to anything but the expected origin."""
+    if _origin(url) != expected:
+        raise ApiError("Refusing to send Spotify credentials to " + (_origin(url) or "an invalid URL"))
+    return url
+
+
+class _SameOriginRedirect(urllib.request.HTTPRedirectHandler):
+    """Follow redirects only while they stay on the credentialed origin."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        target = urllib.parse.urljoin(req.full_url, newurl)
+        _require_origin(target, _origin(req.full_url))
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_opener = urllib.request.build_opener(_SameOriginRedirect)
+
+
+def _read_capped(resp, limit):
+    """Read at most `limit` bytes; anything longer is refused outright."""
+    raw = resp.read(limit + 1)
+    if len(raw) > limit:
+        raise ApiError("Spotify sent more data than this player will read")
+    return raw
+
+
 def _token_request(fields):
     body = urllib.parse.urlencode(fields).encode()
-    req = urllib.request.Request(TOKEN_URL, data=body, method="POST",
+    req = urllib.request.Request(_require_origin(TOKEN_URL, TOKEN_ORIGIN), data=body, method="POST",
                                  headers={"Content-Type": "application/x-www-form-urlencoded"})
     try:
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            return json.loads(resp.read().decode())
+        with _opener.open(req, timeout=20) as resp:
+            return json.loads(_read_capped(resp, MAX_ERROR_BYTES).decode())
     except urllib.error.HTTPError as e:
         try:
-            detail = json.loads(e.read().decode())
+            detail = json.loads(_read_capped(e, MAX_ERROR_BYTES).decode())
             msg = detail.get("error_description") or detail.get("error") or str(e)
         except ValueError:
             msg = str(e)
@@ -193,7 +233,7 @@ def forget_token():
 
 
 def api(method, path, params=None, body=None, retry=True):
-    url = path if path.startswith("http") else API + path
+    url = _require_origin(path if path.startswith("http") else API + path, API_ORIGIN)
     if params:
         clean = {k: v for k, v in params.items() if v is not None}
         if clean:
@@ -204,8 +244,8 @@ def api(method, path, params=None, body=None, retry=True):
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, method=method, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            raw = resp.read().decode()
+        with _opener.open(req, timeout=20) as resp:
+            raw = _read_capped(resp, MAX_BODY_BYTES).decode()
             if not raw.strip():
                 return None
             try:
@@ -213,7 +253,7 @@ def api(method, path, params=None, body=None, retry=True):
             except ValueError:
                 return None
     except urllib.error.HTTPError as e:
-        raw = e.read().decode(errors="replace")
+        raw = _read_capped(e, MAX_ERROR_BYTES).decode(errors="replace")
         if e.code == 401 and retry:
             forget_token()
             return api(method, path, params, body, retry=False)
