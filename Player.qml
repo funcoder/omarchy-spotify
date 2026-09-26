@@ -719,10 +719,13 @@ Item {
           anchors.left: parent.left
           anchors.top: header.bottom
           anchors.topMargin: root.gap
-          anchors.bottom: root.narrow ? undefined : footer.top
-          anchors.bottomMargin: root.narrow ? 0 : root.gap
           width: root.narrow ? parent.width : Math.round(parent.width * 0.42)
-          height: root.narrow ? (stage.visible ? stage.height + root.gap : 0) + nowInfo.implicitHeight : undefined
+          // Anchoring the bottom for the wide layout would throw this height
+          // binding away for good, leaving the stacked column full height and
+          // the browser under the footer, so the height is always set here.
+          height: root.narrow
+            ? (stage.visible ? stage.height + root.gap : 0) + nowInfo.implicitHeight
+            : Math.max(0, footer.y - root.gap - y)
           visible: !root.setupNeeded
 
           Item {
