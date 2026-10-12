@@ -301,7 +301,7 @@ def api(method, path, params=None, body=None, retry=True):
         except ValueError:
             pass
         if e.code == 404 and "device" in (msg or "").lower():
-            msg = "No active Spotify device. Start this computer's player or pick a device"
+            msg = "No active device: press d to start This computer or pick a device"
         elif e.code == 403 and "premium" in (msg or "").lower():
             msg = "Spotify Premium is required for playback control"
         raise ApiError(msg or f"Spotify returned {e.code}", e.code)
@@ -709,7 +709,7 @@ def with_device(fn):
         if local["installed"] and not local["authenticated"]:
             raise ApiError("This computer isn't connected to Spotify yet. In Devices (d), press Enter on This computer", NOT_CONNECTED)
         if not local["installed"]:
-            raise ApiError("No Spotify device is online. Install spotifyd to play here (sudo pacman -S spotifyd), or open Spotify on another device")
+            raise ApiError("Install spotifyd to play here: sudo pacman -S spotifyd (or open Spotify on another device)")
         raise ApiError("No Spotify device came online. Check Devices (d)")
     return fn(device)
 
