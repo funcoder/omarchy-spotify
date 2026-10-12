@@ -1192,7 +1192,8 @@ Item {
             id: hints
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            width: Math.min(implicitWidth, parent.width * (root.service && root.service.flash ? 0.62 : 1))
+            width: Math.min(implicitWidth, parent.width * (!root.service || !root.service.flash ? 1
+              : (root.service.flash === root.service.errorText ? 0.25 : 0.62)))
             textFormat: Text.PlainText
             text: root.setupNeeded
               ? "Enter do this step  ·  ↑↓ move  ·  Super+W close"
