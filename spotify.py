@@ -683,7 +683,12 @@ def local_device_id():
 NOT_CONNECTED = 428  # status marker the shell uses to open Devices
 
 
-def with_device(fn):
+def playing_on(device):
+    data = api("GET", "/me/player") or {}
+    return bool(data.get("is_playing")) and (data.get("device") or {}).get("id") == device
+
+
+def with_device(fn, starts_playback=False):
     """Runs a player command. If Spotify has no active device, plays on this
     computer (starting spotifyd if needed), else on any other online device."""
     try:
@@ -711,7 +716,17 @@ def with_device(fn):
         if not local["installed"]:
             raise ApiError("Install spotifyd to play here: sudo pacman -S spotifyd (or open Spotify on another device)")
         raise ApiError("No Spotify device came online. Check Devices (d)")
-    return fn(device)
+    result = fn(device)
+    # A device that has only just come online is listed before it obeys:
+    # spotifyd first restores its last session (paused), and a play sent in
+    # that window is dropped. So check it took, and if not, send it again.
+    if starts_playback:
+        for _ in range(6):
+            time.sleep(0.5)
+            if playing_on(device):
+                return result
+        result = fn(device)
+    return result
 
 
 def op_play(args):
@@ -727,14 +742,14 @@ def op_play(args):
         if args.get("offsetUri"):
             body["offset"] = {"uri": args["offsetUri"]}
     target = args.get("deviceId")
-    with_device(lambda dev: api("PUT", "/me/player/play", {"device_id": target or dev}, body or None))
+    with_device(lambda dev: api("PUT", "/me/player/play", {"device_id": target or dev}, body or None), starts_playback=True)
     return {"ok": True}
 
 
-def simple(method, path, params_fn=None):
+def simple(method, path, params_fn=None, starts_playback=False):
     def run(args):
         params = params_fn(args) if params_fn else {}
-        with_device(lambda dev: api(method, path, dict(params, device_id=dev) if dev else params))
+        with_device(lambda dev: api(method, path, dict(params, device_id=dev) if dev else params), starts_playback)
         return {"ok": True}
     return run
 
@@ -957,7 +972,7 @@ OPS = {
     "devices": op_devices,
     "play": op_play,
     "pause": simple("PUT", "/me/player/pause"),
-    "resume": simple("PUT", "/me/player/play"),
+    "resume": simple("PUT", "/me/player/play", starts_playback=True),
     "next": simple("POST", "/me/player/next"),
     "previous": simple("POST", "/me/player/previous"),
     "seek": simple("PUT", "/me/player/seek", lambda a: {"position_ms": max(0, int(a.get("position", 0)))}),
